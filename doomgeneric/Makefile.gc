@@ -1,0 +1,85 @@
+#-----------------------------------------------------------------------------
+# Makefile.gc - build doomgeneric for the Nintendo GameCube (devkitPPC/libogc)
+#
+#   make -f Makefile.gc          # -> doomgeneric_gc.dol
+#   make -f Makefile.gc clean
+#
+# Requires devkitPro with devkitPPC + libogc + libfat installed, and the
+# DEVKITPRO / DEVKITPPC environment variables set (the devkitPro installer does
+# this for you). We compile an EXPLICIT list of sources rather than globbing so
+# the other platform ports (doomgeneric_sdl.c, _xlib.c, _win.c, ...) are never
+# pulled in -- they would collide on main()/DG_* symbols.
+#-----------------------------------------------------------------------------
+
+ifeq ($(strip $(DEVKITPRO)),)
+$(error "DEVKITPRO is not set. Install devkitPro and export DEVKITPRO/DEVKITPPC.")
+endif
+ifeq ($(strip $(DEVKITPPC)),)
+DEVKITPPC := $(DEVKITPRO)/devkitPPC
+endif
+
+PREFIX  := $(DEVKITPPC)/bin/powerpc-eabi-
+CC      := $(PREFIX)gcc
+LD      := $(PREFIX)gcc
+ELF2DOL := $(DEVKITPRO)/tools/bin/elf2dol
+
+LIBOGC  := $(DEVKITPRO)/libogc
+INCLUDE := -I$(LIBOGC)/include
+LIBPATHS:= -L$(LIBOGC)/lib/cube
+
+OUTPUT   := doomgeneric_gc
+TARGET   := $(OUTPUT)
+OBJDIR   := build_gc
+
+# GameCube (Gekko) machine flags.
+MACHDEP := -DGEKKO -mogc -mcpu=750 -meabi -mhard-float
+
+# -DNORMALUNIX keeps the generic (non-Windows) code paths in the DOOM sources.
+CFLAGS  := -g -O2 -Wall $(MACHDEP) $(INCLUDE) -DNORMALUNIX
+LDFLAGS := -g $(MACHDEP) $(LIBPATHS) -Wl,-Map,$(TARGET).map
+LIBS    := -lfat -logc -lm
+
+# --- Core DOOM sources (from the stock Makefile, MINUS the platform ports) ---
+SRC_CORE := \
+	dummy.c am_map.c doomdef.c doomstat.c dstrings.c d_event.c d_items.c \
+	d_iwad.c d_loop.c d_main.c d_mode.c d_net.c f_finale.c f_wipe.c g_game.c \
+	hu_lib.c hu_stuff.c info.c i_cdmus.c i_endoom.c i_joystick.c i_scale.c \
+	i_sound.c i_system.c i_timer.c memio.c m_argv.c m_bbox.c m_cheat.c \
+	m_config.c m_controls.c m_fixed.c m_menu.c m_misc.c m_random.c p_ceilng.c \
+	p_doors.c p_enemy.c p_floor.c p_inter.c p_lights.c p_map.c p_maputl.c \
+	p_mobj.c p_plats.c p_pspr.c p_saveg.c p_setup.c p_sight.c p_spec.c \
+	p_switch.c p_telept.c p_tick.c p_user.c r_bsp.c r_data.c r_draw.c \
+	r_main.c r_plane.c r_segs.c r_sky.c r_things.c sha1.c sounds.c statdump.c \
+	st_lib.c st_stuff.c s_sound.c tables.c v_video.c wi_stuff.c w_checksum.c \
+	w_file.c w_main.c w_wad.c z_zone.c w_file_stdc.c i_input.c i_video.c \
+	doomgeneric.c
+
+# --- Our GameCube platform layer ---
+SRC_PLAT := doomgeneric_gc.c
+
+SRCS := $(SRC_CORE) $(SRC_PLAT)
+OBJS := $(addprefix $(OBJDIR)/, $(SRCS:.c=.o))
+
+.PHONY: all clean
+
+all: $(TARGET).dol
+
+$(TARGET).dol: $(TARGET).elf
+	@echo [DOL] $@
+	@$(ELF2DOL) $< $@
+	@echo Built $@
+
+$(TARGET).elf: $(OBJS)
+	@echo [LINK] $@
+	@$(LD) $(LDFLAGS) $(OBJS) $(LIBS) -o $@
+
+$(OBJDIR)/%.o: %.c | $(OBJDIR)
+	@echo [CC] $<
+	@$(CC) $(CFLAGS) -c $< -o $@
+
+$(OBJDIR):
+	@mkdir -p $(OBJDIR)
+
+clean:
+	@rm -rf $(OBJDIR) $(TARGET).elf $(TARGET).dol $(TARGET).map
+	@echo Cleaned

@@ -634,14 +634,27 @@ void M_DoSave(int slot)
 //
 void M_SaveSelect(int choice)
 {
+#ifdef GEKKO
+    // GameCube has no keyboard, so the interactive save-name entry is
+    // unreachable. Auto-name the save after the current level and write it
+    // immediately. (Doom II uses MAPxx; everything else uses ExMy.)
+    saveSlot = choice;
+    if (gamemode == commercial)
+        DEH_snprintf(savegamestrings[choice], SAVESTRINGSIZE, "MAP%02d", gamemap);
+    else
+        DEH_snprintf(savegamestrings[choice], SAVESTRINGSIZE, "E%dM%d",
+                     gameepisode, gamemap);
+    M_DoSave(choice);
+#else
     // we are going to be intercepting all chars
     saveStringEnter = 1;
-    
+
     saveSlot = choice;
     M_StringCopy(saveOldString,savegamestrings[choice], SAVESTRINGSIZE);
     if (!strcmp(savegamestrings[choice], EMPTYSTRING))
 	savegamestrings[choice][0] = 0;
     saveCharIndex = strlen(savegamestrings[choice]);
+#endif
 }
 
 //
@@ -1624,6 +1637,14 @@ boolean M_Responder (event_t* ev)
     // Take care of any messages that need input
     if (messageToPrint)
     {
+#ifdef GEKKO
+        // No keyboard: the confirm/abort keys default to 'y'/'n', which the
+        // controller can't produce. Let the menu-forward button (KEY_ENTER,
+        // mapped to a pad button) act as "yes"; Escape already handles "no".
+        // This makes quickload / overwrite / end-game prompts answerable.
+        if (messageNeedsInput && key == key_menu_forward)
+            key = key_menu_confirm;
+#endif
 	if (messageNeedsInput)
         {
             if (key != ' ' && key != KEY_ESCAPE
