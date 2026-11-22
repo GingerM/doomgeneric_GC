@@ -18,7 +18,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#if defined(FEATURE_SOUND) && !defined(__DJGPP__)
+// On GameCube (GEKKO) our sound backend is libogc ASND, not SDL_mixer, and
+// i_sound.c never actually calls Mix_* -- so skip the SDL header there.
+#if defined(FEATURE_SOUND) && !defined(__DJGPP__) && !defined(GEKKO)
 #include <SDL_mixer.h>
 #endif
 

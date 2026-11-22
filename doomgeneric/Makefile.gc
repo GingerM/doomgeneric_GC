@@ -35,9 +35,11 @@ OBJDIR   := build_gc
 MACHDEP := -DGEKKO -mogc -mcpu=750 -meabi -mhard-float
 
 # -DNORMALUNIX keeps the generic (non-Windows) code paths in the DOOM sources.
-CFLAGS  := -g -O2 -Wall $(MACHDEP) $(INCLUDE) -DNORMALUNIX
+# -DFEATURE_SOUND enables the sound_module path (our libogc ASND backend).
+CFLAGS  := -g -O2 -Wall $(MACHDEP) $(INCLUDE) -DNORMALUNIX -DFEATURE_SOUND
 LDFLAGS := -g $(MACHDEP) $(LIBPATHS) -Wl,-Map,$(TARGET).map
-LIBS    := -lfat -logc -lm
+# -lasnd (libogc ASND) must come before -logc.
+LIBS    := -lfat -lasnd -logc -lm
 
 # --- Core DOOM sources (from the stock Makefile, MINUS the platform ports) ---
 SRC_CORE := \
@@ -55,7 +57,7 @@ SRC_CORE := \
 	doomgeneric.c
 
 # --- Our GameCube platform layer ---
-SRC_PLAT := doomgeneric_gc.c
+SRC_PLAT := doomgeneric_gc.c i_gcsound.c
 
 SRCS := $(SRC_CORE) $(SRC_PLAT)
 OBJS := $(addprefix $(OBJDIR)/, $(SRCS:.c=.o))
